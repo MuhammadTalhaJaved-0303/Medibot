@@ -3,94 +3,308 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MediBot - AI Medical Assistant</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <title>Medical AI Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 800px;
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.bot .message-content {
+            background: white;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+        }
+
+        #userInput {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #userInput:focus {
+            border-color: #667eea;
+        }
+
+        #sendBtn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        #sendBtn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        #sendBtn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: flex;
+            gap: 5px;
+            padding: 10px;
+        }
+
+        .loading span {
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .loading span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .loading span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        .disclaimer {
+            font-size: 11px;
+            color: #666;
+            padding: 10px 20px;
+            background: #fff3cd;
+            border-top: 1px solid #ffc107;
+            text-align: center;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div class="flex h-[95vh] w-full max-w-6xl shadow-2xl rounded-2xl overflow-hidden bg-white">
-        
-        <!-- Sidebar -->
-        <div class="w-1/3 bg-gray-50 border-r border-gray-200 flex flex-col">
-            <div class="p-6 border-b border-gray-200">
-                <h1 class="text-3xl font-bold text-blue-600">MediBot</h1>
-                <p class="text-gray-600 mt-1">Your AI Medical Assistant</p>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 Medical AI Assistant</h1>
+            <p>Ask me about symptoms, conditions, or treatments</p>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="message bot">
+                <div class="message-content">
+                    Hello! I'm your Medical AI Assistant. I can help answer questions about medical conditions, symptoms, and treatments. Please note that I'm not a substitute for professional medical advice. How can I help you today?
+                </div>
             </div>
+        </div>
+
+        <div class="disclaimer">
+            ⚠️ This AI provides information only. Always consult a healthcare professional for medical advice.
+        </div>
+
+        <div class="input-container">
+            <input 
+                type="text" 
+                id="userInput" 
+                placeholder="Type your medical question here..."
+                onkeypress="if(event.key === 'Enter') sendMessage()"
+            >
+            <button id="sendBtn" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
             
-            <div class="flex-1 p-6 overflow-y-auto">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">How It Works</h2>
-                <p class="text-sm text-gray-700 mb-4">
-                    MediBot is powered by advanced AI to provide you with general health information and symptom analysis. 
-                </p>
-                <ul class="list-disc list-inside text-sm text-gray-700 space-y-2 mb-6">
-                    <li>Describe your symptoms (e.g., "I have a fever and a cough").</li>
-                    <li>Ask general health questions.</li>
-                    <li>Get information on medical conditions.</li>
-                    <li>Receive wellness and prevention tips.</li>
-                </ul>
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = content;
+            
+            messageDiv.appendChild(contentDiv);
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
 
-                <h3 class="text-md font-semibold text-gray-800 mb-2">Disclaimer</h3>
-                <div class="bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800 p-3 rounded-lg text-xs">
-                    <p class="font-bold mb-1">Important: Not a Substitute for Medical Advice</p>
-                    <p>MediBot is an AI assistant and not a medical professional. The information provided is for informational purposes only and does not constitute medical advice, diagnosis, or treatment. Always consult with a qualified healthcare provider for any medical concerns or before making any health-related decisions.</p>
+        function showLoading() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message bot';
+            loadingDiv.id = 'loading';
+            loadingDiv.innerHTML = `
+                <div class="message-content">
+                    <div class="loading">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
                 </div>
-            </div>
+            `;
+            chatContainer.appendChild(loadingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
 
-            <!-- Removed API Key section -->
-            <div class="p-4 bg-gray-100 border-t border-gray-200">
-                <p class="text-xs text-gray-500 text-center">Powered by Google Gemini</p>
-            </div>
-        </div>
+        function removeLoading() {
+            const loading = document.getElementById('loading');
+            if (loading) {
+                loading.remove();
+            }
+        }
 
-        <!-- Chat Area -->
-        <div class="w-2/3 flex flex-col">
-            <!-- Chat Header -->
-            <div class="bg-white p-4 border-b border-gray-200 shadow-sm flex justify-between items-center">
-                <h2 class="text-xl font-semibold text-gray-800">Chat</h2>
-                <button id="clear-chat-btn" class="text-sm text-gray-500 hover:text-red-500 transition duration-300">
-                    Clear Chat
-                </button>
-            </div>
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
 
-            <!-- Chat Container -->
-            <div id="chat-container" class="flex-1 p-6 overflow-y-auto space-y-4 bg-gray-100">
-                <!-- Messages will be appended here -->
-            </div>
+            // Add user message
+            addMessage(message, true);
+            userInput.value = '';
+            sendBtn.disabled = true;
 
-            <!-- Loading Indicator -->
-            <div id="loading-indicator" class="p-6 hidden">
-                <div class="flex items-center space-x-2">
-                    <div class="loader"></div>
-                    <span class="text-gray-500">MediBot is typing...</span>
-                </div>
-            </div>
+            // Show loading
+            showLoading();
 
-            <!-- Input Area -->
-            <div class="p-6 bg-white border-t border-gray-200">
-                <div class="flex items-center space-x-3">
-                    <input type="text" id="user-input" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Describe your symptoms...">
-                    <button id="send-btn" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-300 shadow-sm">
-                        Send
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+            try {
+                const response = await fetch('http://127.0.0.1:5000/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
 
-    <!-- Removed API Key Modal -->
+                removeLoading();
 
-    <!-- Error Modal -->
-    <div id="error-modal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 hidden">
-        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
-            <h2 class="text-2xl font-bold text-red-600 mb-4">Error</h2>
-            <p id="error-message" class="text-gray-700 mb-6">An error occurred. Please try again later.</p>
-            <button id="error-ok-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition duration-300">
-                OK
-            </button>
-        </div>
-    </div>
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
 
-    <script src="script.js"></script>
+                const data = await response.json();
+                
+                // Format the response
+                let botResponse = data.response;
+                if (typeof botResponse === 'object') {
+                    botResponse = botResponse.raw || JSON.stringify(botResponse);
+                }
+                
+                // Convert markdown-style formatting to HTML
+                botResponse = botResponse
+                    .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/\n/g, '<br>');
+                
+                addMessage(botResponse);
+            } catch (error) {
+                removeLoading();
+                addMessage('Sorry, there was an error processing your request. Please try again.', false);
+                console.error('Error:', error);
+            } finally {
+                sendBtn.disabled = false;
+                userInput.focus();
+            }
+        }
+    </script>
 </body>
 </html>
