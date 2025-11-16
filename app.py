@@ -26,8 +26,7 @@ if not gemini_api_key:
 os.environ["GOOGLE_API_KEY"] = gemini_api_key
 
 # Set up the language model - use litellm format directly
-from litellm import completion
-llm = "gemini/gemini-1.5-flash"
+llm = "gemini/gemini-2.5-flash"
 
 # --- Document Loading and RAG Setup (Re-enabled) ---
 agent_tools = []
@@ -111,9 +110,11 @@ def chat():
 
     try:
         result = medical_crew.kickoff()
-        return jsonify({'response': result})
+        # Extract the actual text from CrewOutput
+        response_text = str(result.raw) if hasattr(result, 'raw') else str(result)
+        return jsonify({'response': response_text})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)
