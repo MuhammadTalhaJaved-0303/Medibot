@@ -25,8 +25,8 @@ if not gemini_api_key:
 # Set up environment variable for Google API key (required by litellm)
 os.environ["GOOGLE_API_KEY"] = gemini_api_key
 
-# Set up the language model - use litellm format directly
-llm = "gemini/gemini-2.5-flash"
+# Set up the language model - use litellm format directly with optimized settings
+llm = "gemini/gemini-2.5-flash"  # Flash model is already the fastest
 
 # --- Document Loading and RAG Setup (Re-enabled) ---
 agent_tools = []
@@ -58,18 +58,21 @@ agent_tools.append(search_tool)
 
 # --- CrewAI Agent Definition ---
 medical_research_agent = Agent(
-    role='Medical Research Specialist',
-    goal='To provide accurate, evidence-based medical information by searching through provided documents and the web.',
+    role='Expert Medical Information Specialist',
+    goal='Provide comprehensive, accurate medical information including detailed medicine recommendations with brand names, dosages, and practical guidance.',
     backstory=(
-        "You are an expert medical researcher with a background in clinical studies and pharmacology. "
-        "You are skilled at dissecting complex medical topics and presenting them in a clear, understandable way. "
-        "Your primary function is to consult a vector database of medical documents to answer user queries. "
-        "If the information is not found in the documents, you then use your web search capabilities to find a reliable answer."
+        "You are an experienced medical information specialist with extensive knowledge of "
+        "medications, treatments, and medical conditions. You provide detailed, practical advice "
+        "including specific medicine names (both generic and brand names), dosage information, "
+        "timing, warnings, and local availability. You explain medical concepts clearly and "
+        "help people understand their treatment options while emphasizing the importance of "
+        "professional medical consultation."
     ),
-    verbose=True,
+    verbose=False,  # Disable verbose logging for speed
     allow_delegation=False,
     tools=agent_tools,
-    llm=llm
+    llm=llm,
+    max_iter=5  # Increased for more thorough research
 )
 
 # --- Routes ---
@@ -86,18 +89,39 @@ def chat():
     # Create the task for the agent
     research_task = Task(
         description=f"""
-        Answer the user's medical question based on the provided documents and your general knowledge.
-        The user's question is: "{user_input}"
+        User question: "{user_input}"
 
-        **IMPORTANT INSTRUCTIONS:**
-        1.  **PRIORITIZE DOCUMENTS:** If a 'medical_document_search' tool is available, use it FIRST to search the provided medical documents for an answer.
-        2.  **WEB SEARCH AS BACKUP:** If the documents do not contain a relevant answer, use the web search tool to find information from reputable medical sources (e.g., Mayo Clinic, WebMD, WHO).
-        3.  **DISCLAIMER:** ALWAYS start your final answer with the following disclaimer:
-            '***Disclaimer: I am an AI assistant and not a medical professional. The information I provide is for informational purposes only and not a substitute for professional medical advice, diagnosis, or treatment. Always consult with a qualified healthcare provider for any medical concerns.***'
-        4.  **SAFETY FIRST:** Do NOT provide a diagnosis. You can give information about conditions, but you must state that a doctor is required for a real diagnosis. If the query seems urgent or life-threatening (e.g., chest pain, difficulty breathing), your primary response should be to advise seeking immediate medical attention.
+        Provide a comprehensive, helpful medical response following these guidelines:
+
+        1. **For Medicine Recommendations:**
+           - Categorize medicines by type (Antiviral/Prescription, OTC symptom relief, etc.)
+           - Include specific brand names and generic names (e.g., "Paracetamol (Panadol, Tylenol)")
+           - Explain what each medicine does and when to use it
+           - Include dosage guidance if relevant
+           - Mention timing (e.g., "most effective within 48 hours of symptoms")
+           - Add important warnings (e.g., don't give aspirin to children, check for drug interactions)
+           - Provide local context (medicines available in Pakistan/user's region if known)
+           - End with: "⚠️ It's strongly recommended to consult a doctor before taking any medication to ensure it's safe and appropriate for your specific situation."
+
+        2. **For Symptom/Condition Questions:**
+           - Explain the condition clearly
+           - List common symptoms
+           - Suggest treatment options (home remedies, OTC medicines, when to see a doctor)
+           - Include prevention tips if relevant
+
+        3. **For Emergencies:**
+           - Immediately advise seeking medical attention
+           - List warning signs to watch for
+
+        4. **General Guidelines:**
+           - Be detailed and informative like a knowledgeable medical assistant
+           - Use bullet points and clear formatting
+           - Cite reliable sources when possible (WHO, CDC, medical journals)
+           - Be empathetic and helpful
+           - Search documents first, then use web search for comprehensive information
         """,
         agent=medical_research_agent,
-        expected_output="A clear, concise, and helpful answer to the user's question, formatted in markdown, starting with the mandatory disclaimer."
+        expected_output="A detailed, well-structured medical response with specific medicine names, dosages, warnings, and practical advice."
     )
 
     # Create and run the crew
@@ -105,7 +129,9 @@ def chat():
         agents=[medical_research_agent],
         tasks=[research_task],
         process=Process.sequential,
-        verbose=True
+        verbose=False,  # Disable verbose for speed
+        memory=False,  # Disable memory for faster responses
+        cache=True  # Enable caching for repeated queries
     )
 
     try:
