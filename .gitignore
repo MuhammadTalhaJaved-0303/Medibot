@@ -51,3 +51,6 @@ data/
 
 # FAISS index
 faiss_index/
+
+# Chat History
+chats.json

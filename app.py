@@ -3,11 +3,11 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from crewai import Agent, Task, Crew, Process
 from crewai_tools import SerperDevTool
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.tools.retriever import create_retriever_tool
+from langchain_core.tools import create_retriever_tool
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -75,21 +75,156 @@ medical_research_agent = Agent(
     max_iter=5  # Increased for more thorough research
 )
 
+import json
+import uuid
+from datetime import datetime
+
+# --- Chat History Management ---
+CHATS_FILE = "chats.json"
+
+def load_chats():
+    if not os.path.exists(CHATS_FILE):
+        return {}
+    try:
+        with open(CHATS_FILE, 'r') as f:
+            return json.load(f)
+    except:
+        return {}
+
+def save_chats(chats):
+    with open(CHATS_FILE, 'w') as f:
+        json.dump(chats, f, indent=2)
+
+def get_chat_history():
+    chats = load_chats()
+    # Return list of summaries sorted by timestamp (newest first)
+    history = []
+    for session_id, data in chats.items():
+        history.append({
+            'id': session_id,
+            'title': data.get('title', 'New Chat'),
+            'timestamp': data.get('timestamp', ''),
+            'preview': data['messages'][-1]['content'][:50] + "..." if data['messages'] else "Empty chat"
+        })
+    return sorted(history, key=lambda x: x['timestamp'], reverse=True)
+
+def get_chat_session(session_id):
+    chats = load_chats()
+    return chats.get(session_id, {'messages': []})
+
+def save_message(session_id, role, content):
+    chats = load_chats()
+    if session_id not in chats:
+        chats[session_id] = {
+            'title': 'New Chat',
+            'timestamp': datetime.now().isoformat(),
+            'messages': []
+        }
+    
+    chats[session_id]['messages'].append({
+        'role': role,
+        'content': content,
+        'timestamp': datetime.now().isoformat()
+    })
+    
+    # Update title if it's the first user message
+    if role == 'user' and len(chats[session_id]['messages']) <= 2: # <= 2 because system/welcome might be there? No, we just add user/bot.
+        # Simple title generation: first few words
+        chats[session_id]['title'] = content[:30] + "..." if len(content) > 30 else content
+        
+    chats[session_id]['timestamp'] = datetime.now().isoformat()
+    save_chats(chats)
+
+import google.generativeai as genai
+from PIL import Image
+import io
+
+# Configure GenAI
+if gemini_api_key:
+    genai.configure(api_key=gemini_api_key)
+
+def analyze_image(image_file):
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        img = Image.open(image_file)
+        response = model.generate_content([
+            "Analyze this medical image (lab report, prescription, medicine packaging, or symptom) in detail. "
+            "If it's text, extract it accurately. If it's a symptom, describe it. "
+            "If it's a medicine, identify the name and dosage.", 
+            img
+        ])
+        return response.text
+    except Exception as e:
+        return f"Error analyzing image: {str(e)}"
+
 # --- Routes ---
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')
 
+@app.route('/<path:filename>')
+def serve_static(filename):
+    return send_from_directory('.', filename)
+
+@app.route('/history', methods=['GET'])
+def get_history():
+    return jsonify(get_chat_history())
+
+@app.route('/history/<session_id>', methods=['GET'])
+def get_session(session_id):
+    session = get_chat_session(session_id)
+    if not session:
+        return jsonify({'error': 'Session not found'}), 404
+    return jsonify(session)
+
+@app.route('/history/<session_id>', methods=['DELETE'])
+def delete_session(session_id):
+    chats = load_chats()
+    if session_id in chats:
+        del chats[session_id]
+        save_chats(chats)
+        return jsonify({'success': True})
+    return jsonify({'error': 'Session not found'}), 404
+
 @app.route('/chat', methods=['POST'])
 def chat():
-    user_input = request.json.get('message')
-    if not user_input:
-        return jsonify({'error': 'No message provided'}), 400
+    # Handle both JSON and Multipart requests
+    if request.is_json:
+        data = request.json
+        user_input = data.get('message')
+        session_id = data.get('session_id')
+        image_file = None
+    else:
+        user_input = request.form.get('message')
+        session_id = request.form.get('session_id')
+        image_file = request.files.get('image')
+    
+    if not user_input and not image_file:
+        return jsonify({'error': 'No message or image provided'}), 400
+
+    # Generate new session ID if not provided
+    if not session_id or session_id == 'null':
+        session_id = str(uuid.uuid4())
+
+    # Process Image if present
+    image_context = ""
+    if image_file:
+        image_analysis = analyze_image(image_file)
+        image_context = f"\n\n[IMAGE ANALYSIS DATA]:\nThe user uploaded an image. Here is the analysis of that image:\n{image_analysis}\n"
+        # Append to user input for storage/display
+        if not user_input:
+            user_input = "Analyze this image."
+        
+        # Save a note about the image in history (we don't save the actual image bytes to JSON)
+        save_message(session_id, 'user', f"{user_input} [Attached Image]")
+    else:
+        save_message(session_id, 'user', user_input)
 
     # Create the task for the agent
     research_task = Task(
         description=f"""
         User question: "{user_input}"
+        {image_context}
 
         Provide a comprehensive, helpful medical response following these guidelines:
 
@@ -138,7 +273,14 @@ def chat():
         result = medical_crew.kickoff()
         # Extract the actual text from CrewOutput
         response_text = str(result.raw) if hasattr(result, 'raw') else str(result)
-        return jsonify({'response': response_text})
+        
+        # Save bot response
+        save_message(session_id, 'bot', response_text)
+        
+        return jsonify({
+            'response': response_text,
+            'session_id': session_id
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

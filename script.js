@@ -1,140 +1,273 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const chatContainer = document.getElementById('chat-container');
-    const userInput = document.getElementById('user-input');
-    const sendBtn = document.getElementById('send-btn');
-    const loadingIndicator = document.getElementById('loading-indicator');
-    const clearChatBtn = document.getElementById('clear-chat-btn');
-    
-    // Removed API Key Elements
-    
-    // Error Modal Elements
-    const errorModal = document.getElementById('error-modal');
-    const errorMessage = document.getElementById('error-message');
-    const errorOkBtn = document.getElementById('error-ok-btn');
+    const chatContainer = document.getElementById('chatContainer');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const historyList = document.getElementById('historyList');
+    const newChatBtn = document.getElementById('newChatBtn');
 
-    let chatHistory = [];
-    // API details are now handled by the backend
-    const API_URL = '/chat'; // The new backend endpoint
+    // Image Upload Elements
+    const imageInput = document.getElementById('imageInput');
+    const attachBtn = document.getElementById('attachBtn');
+    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+    const imagePreview = document.getElementById('imagePreview');
+    const removeImageBtn = document.getElementById('removeImageBtn');
 
-    // System instruction for the medical chatbot is now handled by the backend
-    // const SYSTEM_INSTRUCTION = { ... };
+    let currentSessionId = null;
 
-    // Function to check and get API Key is no longer needed
+    // Initialize
+    loadHistory();
 
-    // Function to show error modal
-    function showError(message) {
-        errorMessage.textContent = message;
-        errorModal.classList.remove('hidden');
+    // Event Listeners
+    newChatBtn.addEventListener('click', startNewChat);
+    sendBtn.addEventListener('click', sendMessage);
+    userInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    // Image Upload Listeners
+    if (attachBtn) {
+        attachBtn.addEventListener('click', () => imageInput.click());
     }
 
-    // Function to hide error modal
-    function hideError() {
-        errorModal.classList.add('hidden');
+    if (imageInput) {
+        imageInput.addEventListener('change', () => {
+            const file = imageInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result;
+                    imagePreviewContainer.style.display = 'flex';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
     }
 
-    // Function to initialize the chat with the disclaimer
-    async function initChat() {
-        // The backend will now provide the initial disclaimer
-        addMessage('bot', '***Disclaimer: I am an AI assistant and not a medical professional. The information I provide is for informational purposes only and not a substitute for professional medical advice, diagnosis, or treatment. Always consult with a qualified healthcare provider for any medical concerns.***');
+    if (removeImageBtn) {
+        removeImageBtn.addEventListener('click', clearImageSelection);
     }
 
-    // Function to add a message to the chat UI
-    function addMessage(sender, text) {
+    function clearImageSelection() {
+        if (imageInput) imageInput.value = '';
+        if (imagePreview) imagePreview.src = '';
+        if (imagePreviewContainer) imagePreviewContainer.style.display = 'none';
+    }
+
+    async function loadHistory() {
+        try {
+            const response = await fetch('/history');
+            const history = await response.json();
+            renderHistory(history);
+        } catch (error) {
+            console.error('Error loading history:', error);
+        }
+    }
+
+    function renderHistory(history) {
+        historyList.innerHTML = '';
+        history.forEach(item => {
+            const div = document.createElement('div');
+            div.className = `history-item ${item.id === currentSessionId ? 'active' : ''}`;
+            div.innerHTML = `
+                <span>${item.title}</span>
+                <button class="delete-btn" title="Delete chat">×</button>
+            `;
+
+            // Handle click on the item (load session)
+            div.onclick = (e) => {
+                // If clicked on delete button, don't load session
+                if (e.target.classList.contains('delete-btn')) {
+                    deleteSession(e, item.id);
+                } else {
+                    loadSession(item.id);
+                }
+            };
+
+            historyList.appendChild(div);
+        });
+    }
+
+    async function loadSession(sessionId) {
+        try {
+            const response = await fetch(`/history/${sessionId}`);
+            const data = await response.json();
+
+            currentSessionId = sessionId;
+            chatContainer.innerHTML = ''; // Clear current chat
+            clearImageSelection(); // Clear any pending image
+
+            // Re-render history to update active state
+            loadHistory();
+
+            // Render messages
+            data.messages.forEach(msg => {
+                addMessage(msg.content, msg.role === 'user');
+            });
+        } catch (error) {
+            console.error('Error loading session:', error);
+        }
+    }
+
+    async function deleteSession(event, sessionId) {
+        event.stopPropagation(); // Prevent triggering loadSession
+        if (!confirm('Are you sure you want to delete this chat?')) return;
+
+        try {
+            await fetch(`/history/${sessionId}`, { method: 'DELETE' });
+            if (currentSessionId === sessionId) {
+                startNewChat();
+            } else {
+                loadHistory();
+            }
+        } catch (error) {
+            console.error('Error deleting session:', error);
+        }
+    }
+
+    function startNewChat() {
+        currentSessionId = null;
+        clearImageSelection();
+        chatContainer.innerHTML = `
+            <div class="message bot">
+                <div class="avatar">🤖</div>
+                <div class="message-content">
+                    Hello! I'm MediBot, your AI Medical Assistant. I can help answer questions about medical conditions, symptoms, and treatments. Please note that I'm not a substitute for professional medical advice. How can I help you today?
+                </div>
+            </div>
+        `;
+        loadHistory();
+    }
+
+    function addMessage(content, isUser = false) {
         const messageDiv = document.createElement('div');
-        messageDiv.classList.add('message', 'p-4', 'rounded-lg', 'max-w-xl');
-        
-        if (sender === 'user') {
-            messageDiv.classList.add('bg-blue-500', 'text-white', 'self-end', 'ml-auto');
-        } else {
-            messageDiv.classList.add('bg-white', 'text-gray-800', 'self-start', 'mr-auto', 'shadow-sm');
+        messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar';
+        avatar.textContent = isUser ? '👤' : '🤖';
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+
+        // Format content if it's from bot
+        if (!isUser) {
+            content = content
+                .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br>');
         }
 
-        // Sanitize text before treating as HTML (basic sanitization)
-        let formattedText = text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/\n/g, '<br>')
-            .replace(/\*\*\*(.*?)\*\*\*/g, '<br><strong><em>$1</em></strong><br>') // Bold Italic with breaks
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
-            .replace(/\*(.*?)\*/g, '<em>$1</em>'); // Italic
+        contentDiv.innerHTML = content;
 
-        messageDiv.innerHTML = formattedText;
+        messageDiv.appendChild(avatar);
+        messageDiv.appendChild(contentDiv);
         chatContainer.appendChild(messageDiv);
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
-    // Function to handle sending a message
+    function showLoading() {
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'message bot';
+        loadingDiv.id = 'loading';
+        loadingDiv.innerHTML = `
+            <div class="avatar">🤖</div>
+            <div class="message-content">
+                <div class="loading">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        `;
+        chatContainer.appendChild(loadingDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function removeLoading() {
+        const loading = document.getElementById('loading');
+        if (loading) {
+            loading.remove();
+        }
+    }
+
     async function sendMessage() {
-        const prompt = userInput.value.trim();
-        if (prompt === '') {
-            return;
+        const message = userInput.value.trim();
+        const imageFile = imageInput ? imageInput.files[0] : null;
+
+        if (!message && !imageFile) return;
+
+        // Add user message
+        let displayMessage = message;
+        if (imageFile) {
+            displayMessage = message ? `${message} <br><em>[Attached Image: ${imageFile.name}]</em>` : `<em>[Attached Image: ${imageFile.name}]</em>`;
         }
 
-        // Add user message to UI
-        addMessage('user', prompt);
+        addMessage(displayMessage, true);
         userInput.value = '';
-        loadingIndicator.classList.remove('hidden');
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        // Prepare request data
+        let body;
+        let headers = {};
+
+        if (imageFile) {
+            const formData = new FormData();
+            formData.append('message', message);
+            if (currentSessionId) formData.append('session_id', currentSessionId);
+            formData.append('image', imageFile);
+            body = formData;
+            // Content-Type header is automatically set by browser for FormData
+        } else {
+            body = JSON.stringify({
+                message: message,
+                session_id: currentSessionId
+            });
+            headers['Content-Type'] = 'application/json';
+        }
+
+        // Clear image selection immediately after sending
+        clearImageSelection();
+
+        sendBtn.disabled = true;
+
+        // Show loading
+        showLoading();
 
         try {
-            // Call the new backend API
-            const aiResponse = await callMedicalBackend(prompt);
+            const response = await fetch('http://127.0.0.1:5000/chat', {
+                method: 'POST',
+                headers: headers,
+                body: body
+            });
 
-            // Add AI response to UI
-            addMessage('bot', aiResponse);
+            removeLoading();
 
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            const data = await response.json();
+
+            // Update current session ID if it was a new chat
+            if (data.session_id) {
+                currentSessionId = data.session_id;
+                loadHistory(); // Refresh sidebar to show new chat title
+            }
+
+            // Format the response
+            let botResponse = data.response;
+            if (typeof botResponse === 'object') {
+                botResponse = botResponse.raw || JSON.stringify(botResponse);
+            }
+
+            addMessage(botResponse);
         } catch (error) {
-            console.error("Error calling backend:", error);
-            showError(`Error: ${error.message}. The AI backend could not be reached. Please check your connection and try again.`);
+            removeLoading();
+            addMessage('Sorry, there was an error processing your request. Please try again.', false);
+            console.error('Error:', error);
         } finally {
-            loadingIndicator.classList.add('hidden');
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            sendBtn.disabled = false;
+            userInput.focus();
         }
     }
-
-    // Function to call the backend API
-    async function callMedicalBackend(message) {
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ message: message })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `Backend Error: Status ${response.status}`);
-        }
-
-        const result = await response.json();
-        return result.response;
-    }
-
-    // Function to clear chat
-    function clearChat() {
-        chatContainer.innerHTML = '';
-        chatHistory = [];
-        // Re-initialize the chat to get the disclaimer
-        initChat();
-    }
-
-    // Event Listeners
-    sendBtn.addEventListener('click', sendMessage);
-    userInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            sendMessage();
-        }
-    });
-    
-    clearChatBtn.addEventListener('click', clearChat);
-    
-    // Removed API Key Listeners
-
-    // Error Modal Listener
-    errorOkBtn.addEventListener('click', hideError);
-
-    // Initialize the app
-    initChat(); // Changed from initializeApp to initChat
 });

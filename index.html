@@ -1,397 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MediBot - AI Medical Assistant</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Google Sans', 'Segoe UI', Roboto, sans-serif;
-            background: #f8f9fa;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            max-width: 100%;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #1a73e8 0%, #4285f4 50%, #34a853 100%);
-            color: white;
-            padding: 16px 24px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .header h1 {
-            font-size: 22px;
-            font-weight: 500;
-            letter-spacing: -0.5px;
-        }
-
-        .logo {
-            font-size: 28px;
-        }
-
-        .chat-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 24px;
-            background: #ffffff;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .message {
-            display: flex;
-            gap: 12px;
-            animation: fadeIn 0.4s ease-out;
-            max-width: 900px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .message.user {
-            flex-direction: row-reverse;
-        }
-
-        .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            flex-shrink: 0;
-        }
-
-        .message.user .avatar {
-            background: linear-gradient(135deg, #1a73e8, #4285f4);
-            color: white;
-        }
-
-        .message.bot .avatar {
-            background: linear-gradient(135deg, #34a853, #0f9d58);
-            color: white;
-        }
-
-        .message-content {
-            flex: 1;
-            padding: 16px 20px;
-            border-radius: 20px;
-            word-wrap: break-word;
-            line-height: 1.6;
-            font-size: 15px;
-        }
-
-        .message.user .message-content {
-            background: #e3f2fd;
-            color: #1a1a1a;
-            border: 1px solid #bbdefb;
-        }
-
-        .message.bot .message-content {
-            background: #f1f3f4;
-            color: #202124;
-        }
-
-        .input-container {
-            padding: 20px 24px 24px;
-            background: #ffffff;
-            border-top: 1px solid #e8eaed;
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            max-width: 900px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        .input-wrapper {
-            flex: 1;
-            position: relative;
-            display: flex;
-            align-items: center;
-            background: #f1f3f4;
-            border-radius: 28px;
-            padding: 4px 20px;
-            transition: all 0.2s;
-        }
-
-        .input-wrapper:focus-within {
-            background: #e8f0fe;
-            box-shadow: 0 2px 8px rgba(26, 115, 232, 0.2);
-        }
-
-        #userInput {
-            flex: 1;
-            padding: 14px 0;
-            border: none;
-            background: transparent;
-            font-size: 15px;
-            outline: none;
-            color: #202124;
-        }
-
-        #userInput::placeholder {
-            color: #5f6368;
-        }
-
-        #sendBtn {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, #1a73e8, #4285f4);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-            flex-shrink: 0;
-        }
-
-        #sendBtn:hover:not(:disabled) {
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4);
-        }
-
-        #sendBtn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .loading {
-            display: flex;
-            gap: 6px;
-            padding: 8px 0;
-        }
-
-        .loading span {
-            width: 10px;
-            height: 10px;
-            background: #1a73e8;
-            border-radius: 50%;
-            animation: bounce 1.4s infinite ease-in-out both;
-        }
-
-        .loading span:nth-child(1) {
-            animation-delay: -0.32s;
-        }
-
-        .loading span:nth-child(2) {
-            animation-delay: -0.16s;
-        }
-
-        @keyframes bounce {
-            0%, 80%, 100% {
-                transform: scale(0);
-                opacity: 0.5;
-            }
-            40% {
-                transform: scale(1);
-                opacity: 1;
-            }
-        }
-
-        .disclaimer {
-            font-size: 12px;
-            color: #5f6368;
-            padding: 12px 24px;
-            background: #fef7e0;
-            border-top: 1px solid #fdd663;
-            text-align: center;
-            max-width: 900px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        .chat-container::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .chat-container::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .chat-container::-webkit-scrollbar-thumb {
-            background: #dadce0;
-            border-radius: 4px;
-        }
-
-        .chat-container::-webkit-scrollbar-thumb:hover {
-            background: #bdc1c6;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="container">
-        <div class="header">
-            <div class="header-left">
-                <span class="logo">🏥</span>
-                <h1>MediBot - AI Medical Assistant</h1>
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <button id="newChatBtn" class="new-chat-btn">
+                    <span>+</span> New Chat
+                </button>
+            </div>
+            <div class="history-list" id="historyList">
+                <!-- History items will be added here -->
             </div>
         </div>
 
-        <div class="chat-container" id="chatContainer">
-            <div class="message bot">
-                <div class="avatar">🤖</div>
-                <div class="message-content">
-                    Hello! I'm MediBot, your AI Medical Assistant. I can help answer questions about medical conditions, symptoms, and treatments. Please note that I'm not a substitute for professional medical advice. How can I help you today?
+        <!-- Main Chat Area -->
+        <div class="main-content">
+            <div class="header">
+                <div class="header-left">
+                    <span class="logo">🏥</span>
+                    <h1>MediBot - AI Medical Assistant</h1>
                 </div>
             </div>
-        </div>
 
-        <div class="disclaimer">
-            ⚠️ This AI provides information only. Always consult a healthcare professional for medical advice.
-        </div>
-
-        <div class="input-container">
-            <div class="input-wrapper">
-                <input 
-                    type="text" 
-                    id="userInput" 
-                    placeholder="Ask me about symptoms, conditions, or treatments..."
-                    onkeypress="if(event.key === 'Enter') sendMessage()"
-                >
+            <div class="chat-container" id="chatContainer">
+                <div class="message bot">
+                    <div class="avatar">🤖</div>
+                    <div class="message-content">
+                        Hello! I'm MediBot, your AI Medical Assistant. I can help answer questions about medical
+                        conditions, symptoms, and treatments. Please note that I'm not a substitute for professional
+                        medical advice. How can I help you today?
+                    </div>
+                </div>
             </div>
-            <button id="sendBtn" onclick="sendMessage()">➤</button>
+
+            <div class="disclaimer">
+                ⚠️ This AI provides information only. Always consult a healthcare professional for medical advice.
+            </div>
+
+            <div class="input-container">
+                <div id="imagePreviewContainer" class="image-preview-container" style="display: none;">
+                    <img id="imagePreview" src="" alt="Preview">
+                    <button id="removeImageBtn" class="remove-image-btn">×</button>
+                </div>
+                <div class="input-wrapper">
+                    <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                    <button id="attachBtn" class="attach-btn" title="Attach Image">📎</button>
+                    <input type="text" id="userInput" placeholder="Ask me about symptoms, conditions, or treatments...">
+                </div>
+                <button id="sendBtn">➤</button>
+            </div>
         </div>
     </div>
 
-    <script>
-        const chatContainer = document.getElementById('chatContainer');
-        const userInput = document.getElementById('userInput');
-        const sendBtn = document.getElementById('sendBtn');
-
-        function addMessage(content, isUser = false) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
-            
-            const avatar = document.createElement('div');
-            avatar.className = 'avatar';
-            avatar.textContent = isUser ? '👤' : '🤖';
-            
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'message-content';
-            contentDiv.innerHTML = content;
-            
-            messageDiv.appendChild(avatar);
-            messageDiv.appendChild(contentDiv);
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
-        function showLoading() {
-            const loadingDiv = document.createElement('div');
-            loadingDiv.className = 'message bot';
-            loadingDiv.id = 'loading';
-            loadingDiv.innerHTML = `
-                <div class="avatar">🤖</div>
-                <div class="message-content">
-                    <div class="loading">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                </div>
-            `;
-            chatContainer.appendChild(loadingDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
-        function removeLoading() {
-            const loading = document.getElementById('loading');
-            if (loading) {
-                loading.remove();
-            }
-        }
-
-        async function sendMessage() {
-            const message = userInput.value.trim();
-            if (!message) return;
-
-            // Add user message
-            addMessage(message, true);
-            userInput.value = '';
-            sendBtn.disabled = true;
-
-            // Show loading
-            showLoading();
-
-            try {
-                const response = await fetch('http://127.0.0.1:5000/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ message: message })
-                });
-
-                removeLoading();
-
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-
-                const data = await response.json();
-                
-                // Format the response
-                let botResponse = data.response;
-                if (typeof botResponse === 'object') {
-                    botResponse = botResponse.raw || JSON.stringify(botResponse);
-                }
-                
-                // Convert markdown-style formatting to HTML
-                botResponse = botResponse
-                    .replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>')
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                    .replace(/\n/g, '<br>');
-                
-                addMessage(botResponse);
-            } catch (error) {
-                removeLoading();
-                addMessage('Sorry, there was an error processing your request. Please try again.', false);
-                console.error('Error:', error);
-            } finally {
-                sendBtn.disabled = false;
-                userInput.focus();
-            }
-        }
-    </script>
+    <script src="script.js"></script>
 </body>
+
 </html>
