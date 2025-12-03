@@ -54,9 +54,22 @@
                 <div class="input-wrapper">
                     <input type="file" id="imageInput" accept="image/*" style="display: none;">
                     <button id="attachBtn" class="attach-btn" title="Attach Image">📎</button>
+                    <button id="cameraBtn" class="attach-btn" title="Open Camera">📷</button>
                     <input type="text" id="userInput" placeholder="Ask me about symptoms, conditions, or treatments...">
                 </div>
                 <button id="sendBtn">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Modal -->
+    <div id="cameraModal" class="modal">
+        <div class="modal-content">
+            <video id="cameraVideo" autoplay playsinline></video>
+            <canvas id="cameraCanvas" style="display:none;"></canvas>
+            <div class="modal-controls">
+                <button id="captureBtn" class="primary-btn">Capture</button>
+                <button id="closeCameraBtn" class="secondary-btn">Cancel</button>
             </div>
         </div>
     </div>

@@ -8,50 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Image Upload Elements
     const imageInput = document.getElementById('imageInput');
     const attachBtn = document.getElementById('attachBtn');
-    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
-    const imagePreview = document.getElementById('imagePreview');
-    const removeImageBtn = document.getElementById('removeImageBtn');
-
-    let currentSessionId = null;
-
-    // Initialize
-    loadHistory();
-
-    // Event Listeners
-    newChatBtn.addEventListener('click', startNewChat);
-    sendBtn.addEventListener('click', sendMessage);
-    userInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
-
-    // Image Upload Listeners
-    if (attachBtn) {
-        attachBtn.addEventListener('click', () => imageInput.click());
-    }
-
-    if (imageInput) {
-        imageInput.addEventListener('change', () => {
-            const file = imageInput.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    imagePreview.src = e.target.result;
-                    imagePreviewContainer.style.display = 'flex';
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-
-    if (removeImageBtn) {
-        removeImageBtn.addEventListener('click', clearImageSelection);
-    }
-
-    function clearImageSelection() {
-        if (imageInput) imageInput.value = '';
-        if (imagePreview) imagePreview.src = '';
-        if (imagePreviewContainer) imagePreviewContainer.style.display = 'none';
-    }
 
     async function loadHistory() {
         try {
